@@ -1,0 +1,18 @@
+# Secrets & local config
+.mcp.json
+.env
+.env.local
+.env.*.local
+
+# Frontend build output & dependencies
+web/node_modules/
+web/dist/
+web/.env
+web/.env.local
+web/.env.*.local
+
+# OS / editor noise
+.DS_Store
+Thumbs.db
+.vscode/
+*.log

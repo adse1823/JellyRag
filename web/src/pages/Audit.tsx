@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { butterbase, CategorizationEvent, fmt$$, fmtDate, fmtRelative } from '../lib/butterbase-client';
+import { butterbase, fmt$$, fmtDate, fmtRelative } from '../lib/butterbase-client';
 import { useOrg } from '../lib/OrgContext';
 
 const TRIGGER_BADGE: Record<string, string> = {
@@ -17,8 +17,17 @@ const TRIGGER_LABEL: Record<string, string> = {
   human: 'Human',
 };
 
-interface EventRow extends CategorizationEvent {
-  transactions: { id: string; description: string; vendor_name: string | null; amount_usd: number; date: string };
+interface EventRow {
+  id: string;
+  organization_id: string;
+  transaction_id: string;
+  triggered_by: string;
+  account_id: string;
+  confidence: number;
+  reasoning: string | null;
+  llm_cost_usd: number | null;
+  created_at: string;
+  transactions: { id: string; description: string; vendor_name: string | null; amount_usd: number; date: string } | null;
   chart_of_accounts: { name: string; full_name: string } | null;
 }
 
