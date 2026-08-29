@@ -1,0 +1,22 @@
+{
+  "name": "accounting-agent-butterbase",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "seed:accounts": "ts-node seed/01_chart_of_accounts.ts",
+    "seed:transactions": "ts-node seed/02_synthetic_transactions.ts",
+    "seed:rules": "ts-node seed/03_vendor_rules.ts",
+    "seed:all": "npm run seed:accounts && npm run seed:transactions && npm run seed:rules",
+    "eval": "ts-node functions/run-categorization-eval/index.ts"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.27.0",
+    "@supabase/supabase-js": "^2.45.0",
+    "openai": "^4.65.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.5.0"
+  }
+}
