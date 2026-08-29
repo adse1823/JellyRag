@@ -44,3 +44,30 @@ AS $$
   SET apply_count = apply_count + 1
   WHERE id = p_rule_id;
 $$;
+
+-- ── count_transactions_by_status ──────────────────────────────
+-- Returns pending / in_review / categorized counts for a period.
+-- Called by initiate-month-end before deciding whether close can proceed.
+
+CREATE OR REPLACE FUNCTION count_transactions_by_status(
+  p_organization_id UUID,
+  p_period_start    DATE,
+  p_period_end      DATE
+)
+RETURNS TABLE (
+  pending     BIGINT,
+  in_review   BIGINT,
+  categorized BIGINT
+)
+LANGUAGE sql
+STABLE
+AS $$
+  SELECT
+    COUNT(*) FILTER (WHERE category_status = 'pending')     AS pending,
+    COUNT(*) FILTER (WHERE category_status = 'in_review')   AS in_review,
+    COUNT(*) FILTER (WHERE category_status = 'categorized') AS categorized
+  FROM transactions
+  WHERE
+    organization_id = p_organization_id
+    AND date BETWEEN p_period_start AND p_period_end;
+$$;
