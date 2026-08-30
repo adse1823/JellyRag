@@ -1,14 +1,24 @@
-// Embedding generation and RAG retrieval.
-// Uses OpenAI text-embedding-3-small (dim 1536) to match the
+// Embedding generation and RAG retrieval — routes through Butterbase AI gateway.
+// Uses openai/text-embedding-3-small (dim 1536) to match the
 // pgvector column dimension in 004_embeddings.sql.
-// Swap the model here if Butterbase's native RAG uses a different one.
+//
+// Requires env vars:
+//   BUTTERBASE_API_KEY  — personal key with ai:gateway scope
+//   BUTTERBASE_APP_ID   — app ID (e.g. app_4sbi6bot2fkq)
+//   BUTTERBASE_API_URL  — optional, defaults to https://api.butterbase.ai
 
 import OpenAI from "openai";
 import { DB } from "./db";
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+const BB_API_URL = process.env.BUTTERBASE_API_URL ?? "https://api.butterbase.ai";
+const BB_APP_ID  = process.env.BUTTERBASE_APP_ID!;
 
-const EMBEDDING_MODEL = "text-embedding-3-small";
+const openai = new OpenAI({
+  apiKey:  process.env.BUTTERBASE_API_KEY,
+  baseURL: `${BB_API_URL}/v1/${BB_APP_ID}`,
+});
+
+const EMBEDDING_MODEL = "openai/text-embedding-3-small";
 const EMBEDDING_DIM = 1536;
 
 export interface RagMatch {
@@ -39,7 +49,6 @@ export async function embed(text: string): Promise<number[]> {
   const response = await openai.embeddings.create({
     model: EMBEDDING_MODEL,
     input: text,
-    dimensions: EMBEDDING_DIM,
   });
   return response.data[0].embedding;
 }

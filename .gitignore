@@ -4,8 +4,13 @@
 .env.local
 .env.*.local
 
+# Backend build output & dependencies
+butterbase/node_modules/
+butterbase/dist/
+
 # Frontend build output & dependencies
 web/node_modules/
+web/.next/
 web/dist/
 web/.env
 web/.env.local

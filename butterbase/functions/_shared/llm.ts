@@ -1,8 +1,13 @@
-// LLM call wrapper.
-// Handles: model selection based on budget state, calling Anthropic,
-// cost recording, and returning a typed categorization response.
+// LLM call wrapper — routes through Butterbase AI gateway.
+// Handles: model selection based on budget state, OpenAI-compatible
+// chat call, cost recording, and returning a typed categorization response.
+//
+// Requires env vars:
+//   BUTTERBASE_API_KEY  — personal key with ai:gateway scope
+//   BUTTERBASE_APP_ID   — app ID (e.g. app_4sbi6bot2fkq)
+//   BUTTERBASE_API_URL  — optional, defaults to https://api.butterbase.ai
 
-import Anthropic from "@anthropic-ai/sdk";
+import OpenAI from "openai";
 import { createHash } from "crypto";
 import {
   DB,
@@ -12,12 +17,23 @@ import {
   incrementBudgetSpend,
 } from "./db";
 
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+const BB_API_URL = process.env.BUTTERBASE_API_URL ?? "https://api.butterbase.ai";
+const BB_APP_ID  = process.env.BUTTERBASE_APP_ID!;
 
-// Token prices per million tokens (as of Claude claude-sonnet-4-6 / claude-haiku-4-5)
+const openai = new OpenAI({
+  apiKey:  process.env.BUTTERBASE_API_KEY,
+  baseURL: `${BB_API_URL}/v1/${BB_APP_ID}`,
+});
+
+const SYSTEM_PROMPT =
+  "You are a bookkeeping assistant for an e-commerce company using QuickBooks Online. " +
+  "Your job is to assign the correct QBO account category to a financial transaction. " +
+  "Respond with valid JSON only. No prose outside the JSON object.";
+
+// Token prices per million tokens (Butterbase passes through at provider rates)
 const TOKEN_PRICES: Record<string, { input: number; output: number }> = {
-  "claude-sonnet-4-6": { input: 3.0 / 1e6,  output: 15.0 / 1e6 },
-  "claude-haiku-4-5":  { input: 0.25 / 1e6, output: 1.25 / 1e6 },
+  "anthropic/claude-sonnet-4.6": { input: 3.0 / 1e6,  output: 15.0 / 1e6 },
+  "anthropic/claude-haiku-4.5":  { input: 0.25 / 1e6, output: 1.25 / 1e6 },
 };
 
 export interface LLMCategorizationResult {
@@ -48,7 +64,9 @@ export async function resolveModel(
   }
 
   const pctUsed = budget.spent_usd / budget.budget_usd;
-  const model = pctUsed >= 0.8 ? "claude-haiku-4-5" : "claude-sonnet-4-6";
+  const model = pctUsed >= 0.8
+    ? "anthropic/claude-haiku-4.5"
+    : "anthropic/claude-sonnet-4.6";
   return { model, allowed: true };
 }
 
@@ -61,22 +79,21 @@ export async function categorizationLLMCall(
 ): Promise<LLMCategorizationResult> {
   const promptHash = createHash("sha256").update(prompt).digest("hex");
 
-  const response = await anthropic.messages.create({
+  const response = await openai.chat.completions.create({
     model,
     max_tokens: 512,
-    messages: [{ role: "user", content: prompt }],
-    system:
-      "You are a bookkeeping assistant for an e-commerce company using QuickBooks Online. " +
-      "Your job is to assign the correct QBO account category to a financial transaction. " +
-      "Respond with valid JSON only. No prose outside the JSON object.",
+    messages: [
+      { role: "system", content: SYSTEM_PROMPT },
+      { role: "user",   content: prompt },
+    ],
   });
 
-  const raw = response.content[0].type === "text" ? response.content[0].text : "";
+  const raw = response.choices[0]?.message?.content ?? "";
   const parsed = parseCategorizationResponse(raw);
 
-  const inputTokens = response.usage.input_tokens;
-  const outputTokens = response.usage.output_tokens;
-  const prices = TOKEN_PRICES[model] ?? TOKEN_PRICES["claude-sonnet-4-6"];
+  const inputTokens  = response.usage?.prompt_tokens ?? 0;
+  const outputTokens = response.usage?.completion_tokens ?? 0;
+  const prices = TOKEN_PRICES[model] ?? TOKEN_PRICES["anthropic/claude-sonnet-4.6"];
   const costUsd = inputTokens * prices.input + outputTokens * prices.output;
 
   const month = currentMonth();
@@ -107,7 +124,6 @@ function parseCategorizationResponse(raw: string): Pick<
   LLMCategorizationResult,
   "account_id" | "confidence" | "reasoning" | "alternatives"
 > {
-  // Strip markdown code fences if the model adds them
   const cleaned = raw.replace(/```(?:json)?/g, "").trim();
   let parsed: Record<string, unknown>;
   try {
@@ -123,7 +139,7 @@ function parseCategorizationResponse(raw: string): Pick<
   return {
     account_id: parsed.account_id as string,
     confidence: typeof parsed.confidence === "number" ? parsed.confidence : 0.5,
-    reasoning: typeof parsed.reasoning === "string" ? parsed.reasoning : "",
+    reasoning:  typeof parsed.reasoning  === "string" ? parsed.reasoning  : "",
     alternatives: Array.isArray(parsed.alternatives)
       ? (parsed.alternatives as Array<{ account_id: string; name: string; confidence: number }>)
       : [],
@@ -144,13 +160,10 @@ export function buildCategorizationPrompt(args: {
 }): string {
   const { transaction, accounts, ragMatches, vendorRuleHints } = args;
 
-  // Filter accounts to relevant types for this transaction direction
   const relevantAccounts = accounts.filter((a) => {
     if (transaction.amount_usd > 0) {
-      // Debit / expense
       return ["Expense", "Cost of Goods Sold", "Bank", "Credit Card"].includes(a.account_type);
     } else {
-      // Credit / income or refund
       return ["Income", "Other Current Asset", "Bank"].includes(a.account_type);
     }
   });
@@ -199,5 +212,5 @@ ${accountList}
 }
 
 function currentMonth(): string {
-  return new Date().toISOString().slice(0, 7); // 'YYYY-MM'
+  return new Date().toISOString().slice(0, 7);
 }

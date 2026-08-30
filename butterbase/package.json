@@ -7,10 +7,11 @@
     "seed:transactions": "ts-node seed/02_synthetic_transactions.ts",
     "seed:rules": "ts-node seed/03_vendor_rules.ts",
     "seed:all": "npm run seed:accounts && npm run seed:transactions && npm run seed:rules",
-    "eval": "ts-node functions/run-categorization-eval/index.ts"
+    "seed:demo-state": "ts-node seed/04_demo_state.ts",
+    "eval": "ts-node functions/run-categorization-eval/index.ts",
+    "demo": "ts-node demo/run.ts"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.27.0",
     "@supabase/supabase-js": "^2.45.0",
     "openai": "^4.65.0"
   },

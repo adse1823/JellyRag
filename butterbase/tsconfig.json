@@ -8,7 +8,9 @@
     "skipLibCheck": true,
     "outDir": "dist",
     "rootDir": ".",
-    "resolveJsonModule": true
+    "resolveJsonModule": true,
+    "types": ["node"],
+    "ignoreDeprecations": "5.0"
   },
   "include": ["functions/**/*.ts", "seed/**/*.ts"],
   "exclude": ["node_modules", "dist"]

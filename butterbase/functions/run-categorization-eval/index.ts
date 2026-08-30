@@ -15,7 +15,8 @@
 //
 // Requires env vars:
 //   BUTTERBASE_URL, BUTTERBASE_SERVICE_KEY, DEMO_ORG_ID
-//   ANTHROPIC_API_KEY, OPENAI_API_KEY
+//   BUTTERBASE_API_KEY (Butterbase AI gateway — ai:gateway scope)
+//   BUTTERBASE_APP_ID  (e.g. app_4sbi6bot2fkq)
 
 import { getServiceClient } from "../_shared/db";
 import { handler as categorize } from "../categorize-transaction/index";
