@@ -12,12 +12,9 @@
 //   DEMO_ORG_ID         — UUID of the demo organization
 // ============================================================
 
-import { createClient } from "@supabase/supabase-js"; // Butterbase uses the same client interface
+import { getServiceClient } from "../functions/_shared/db";
 
-const db = createClient(
-  process.env.BUTTERBASE_URL!,
-  process.env.BUTTERBASE_SERVICE_KEY!
-);
+const db = getServiceClient();
 
 const ORG_ID = process.env.DEMO_ORG_ID!;
 

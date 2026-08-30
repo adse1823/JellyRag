@@ -18,13 +18,10 @@
 //   DEMO_ORG_ID
 // ============================================================
 
-import { createClient } from "@supabase/supabase-js";
+import { getServiceClient } from "../functions/_shared/db";
 import { randomUUID } from "crypto";
 
-const db = createClient(
-  process.env.BUTTERBASE_URL!,
-  process.env.BUTTERBASE_SERVICE_KEY!
-);
+const db = getServiceClient();
 
 const ORG_ID = process.env.DEMO_ORG_ID!;
 

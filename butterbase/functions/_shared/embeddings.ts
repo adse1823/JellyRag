@@ -54,8 +54,8 @@ export async function embed(text: string): Promise<number[]> {
 }
 
 // Query the transaction_embeddings table for semantically similar past
-// transactions for a given org. Calls the find_similar_transactions()
-// Postgres function defined in 004_embeddings.sql.
+// transactions. Fetches all embeddings for the org and computes cosine
+// similarity in JavaScript (no custom Postgres function needed).
 export async function findSimilarTransactions(
   db: DB,
   orgId: string,
@@ -64,15 +64,42 @@ export async function findSimilarTransactions(
 ): Promise<RagMatch[]> {
   const { limit = 10, minSimilarity = 0.75 } = opts;
 
-  const { data, error } = await db.rpc("find_similar_transactions", {
-    p_organization_id: orgId,
-    p_embedding: queryEmbedding,
-    p_limit: limit,
-    p_min_similarity: minSimilarity,
-  });
+  const { data, error } = await db
+    .from("transaction_embeddings")
+    .select("transaction_id, account_id, embedded_text, embedding")
+    .eq("organization_id", orgId);
 
   if (error) throw new Error(`RAG query failed: ${error.message}`);
-  return (data ?? []) as RagMatch[];
+  if (!data || data.length === 0) return [];
+
+  return (data as Array<{ transaction_id: string; account_id: string; embedded_text: string; embedding: number[] | string }>)
+    .map((row) => ({
+      transaction_id: row.transaction_id,
+      account_id: row.account_id,
+      embedded_text: row.embedded_text,
+      similarity: cosineSimilarity(queryEmbedding, parseEmbedding(row.embedding)),
+    }))
+    .filter((r) => r.similarity >= minSimilarity)
+    .sort((a, b) => b.similarity - a.similarity)
+    .slice(0, limit);
+}
+
+function parseEmbedding(raw: number[] | string): number[] {
+  if (Array.isArray(raw)) return raw;
+  // Postgres vector format: "[0.1,0.2,...]"
+  return JSON.parse(raw as string) as number[];
+}
+
+function cosineSimilarity(a: number[], b: number[]): number {
+  let dot = 0, normA = 0, normB = 0;
+  const len = Math.min(a.length, b.length);
+  for (let i = 0; i < len; i++) {
+    dot   += a[i] * b[i];
+    normA += a[i] * a[i];
+    normB += b[i] * b[i];
+  }
+  const denom = Math.sqrt(normA) * Math.sqrt(normB);
+  return denom === 0 ? 0 : dot / denom;
 }
 
 // Upsert an embedding for a categorized transaction.

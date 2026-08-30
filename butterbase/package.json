@@ -3,20 +3,23 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "seed:accounts": "ts-node seed/01_chart_of_accounts.ts",
-    "seed:transactions": "ts-node seed/02_synthetic_transactions.ts",
-    "seed:rules": "ts-node seed/03_vendor_rules.ts",
+    "seed:accounts": "ts-node -r dotenv/config seed/01_chart_of_accounts.ts",
+    "seed:transactions": "ts-node -r dotenv/config seed/02_synthetic_transactions.ts",
+    "seed:rules": "ts-node -r dotenv/config seed/03_vendor_rules.ts",
     "seed:all": "npm run seed:accounts && npm run seed:transactions && npm run seed:rules",
-    "seed:demo-state": "ts-node seed/04_demo_state.ts",
-    "eval": "ts-node functions/run-categorization-eval/index.ts",
-    "demo": "ts-node demo/run.ts"
+    "seed:demo-state": "ts-node -r dotenv/config seed/04_demo_state.ts",
+    "eval": "ts-node -r dotenv/config functions/run-categorization-eval/index.ts",
+    "demo": "ts-node -r dotenv/config demo/run.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.45.0",
-    "openai": "^4.65.0"
+    "openai": "^4.65.0",
+    "ws": "^8.21.3"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
+    "@types/ws": "^8.18.1",
+    "dotenv": "^16.6.1",
     "ts-node": "^10.9.2",
     "typescript": "^5.5.0"
   }

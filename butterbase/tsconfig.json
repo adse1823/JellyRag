@@ -12,6 +12,6 @@
     "types": ["node"],
     "ignoreDeprecations": "5.0"
   },
-  "include": ["functions/**/*.ts", "seed/**/*.ts"],
+  "include": ["functions/**/*.ts", "seed/**/*.ts", "demo/**/*.ts"],
   "exclude": ["node_modules", "dist"]
 }

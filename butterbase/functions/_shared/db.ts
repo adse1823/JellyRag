@@ -2,6 +2,7 @@
 // swap the underlying client if Butterbase diverges from Supabase.
 
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
+import ws from "ws";
 
 export type DB = SupabaseClient;
 
@@ -12,7 +13,10 @@ export function getServiceClient(): DB {
   const url = process.env.BUTTERBASE_URL;
   const key = process.env.BUTTERBASE_SERVICE_KEY;
   if (!url || !key) throw new Error("BUTTERBASE_URL and BUTTERBASE_SERVICE_KEY are required");
-  _client = createClient(url, key, { auth: { persistSession: false } });
+  _client = createClient(url, key, {
+    auth: { persistSession: false },
+    realtime: { transport: ws },
+  });
   return _client;
 }
 
@@ -119,11 +123,13 @@ export async function incrementBudgetSpend(
   month: string,
   costUsd: number
 ) {
-  const { error } = await db.rpc("increment_budget_spend", {
-    p_organization_id: orgId,
-    p_month: month,
-    p_cost_usd: costUsd,
-  });
+  const budget = await getMonthlyBudget(db, orgId, month);
+  const current = budget ? Number(budget.spent_usd) : 0;
+  const { error } = await db
+    .from("monthly_budgets")
+    .update({ spent_usd: current + costUsd })
+    .eq("organization_id", orgId)
+    .eq("month", month);
   if (error) throw new Error(`incrementBudgetSpend failed: ${error.message}`);
 }
 
@@ -210,11 +216,17 @@ export async function insertCostEvent(
 }
 
 export async function incrementVendorRuleApplyCount(db: DB, ruleId: string) {
+  const { data: rule } = await db
+    .from("vendor_rules")
+    .select("apply_count")
+    .eq("id", ruleId)
+    .single();
   const { error } = await db
     .from("vendor_rules")
-    .update({ last_applied_at: new Date().toISOString() })
+    .update({
+      apply_count: (rule?.apply_count ?? 0) + 1,
+      last_applied_at: new Date().toISOString(),
+    })
     .eq("id", ruleId);
-  // apply_count increment via rpc to be atomic
-  await db.rpc("increment_vendor_rule_count", { p_rule_id: ruleId });
   if (error) throw new Error(`incrementVendorRuleApplyCount failed: ${error.message}`);
 }
